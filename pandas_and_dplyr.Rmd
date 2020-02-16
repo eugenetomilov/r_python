@@ -1,0 +1,579 @@
+---
+title: "pandas_and_dplyr"
+author: "Eugene"
+date: "28 06 2019"
+output: 
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(reticulate)
+
+reticulate::use_condaenv(condaenv = "Python_R")
+
+require(tidyverse)
+```
+
+```{python}
+
+import pandas as pd
+import numpy as np
+
+import datetime
+from datetime import datetime, date
+
+import matplotlib.pyplot as plt
+
+```
+
+# Чтение csv
+
+Обычно для разделения данных на столбцы используются запятые (,), а для десятичных разделителей - точки (.).
+
+Однако, существует ещё и вариант, когда столбцы разделены точкой с запятой (;) или пробелами. В таком случае в R используется альтернативная функция `read_csv2()` из пакета `dplyr` или задаются разделители в функции `read_delim()`, а в Python задаются разделители в функции `pd.read_csv()`.
+
+#### R
+```{r}
+iris_r <- read_csv("datasets/multiclassification_iris.csv")
+head(iris_r, 10) #просмотреть верхние 10 строк таблицы
+```
+
+#### Python
+```{python}
+iris_py = pd.read_csv("datasets/multiclassification_iris.csv")
+iris_py.head(10) #просмотреть верхние 10 строк таблицы
+```
+
+
+# Создание датафрейма
+
+#### R
+```{r}
+data_r <- tibble(num = c(1, 2, 3, 4, 5, 6),
+                 char = c("One", "Two", "Three", "Four", "Five", "Six"),
+                 factor = factor(c("First", "Second", "Third", "Fourth", "Fifth", "Sixth")),
+                 ordered_factor = factor(c("First", "Second", "Third", "Fourth", "Fifth", "Sixth"), ordered = TRUE),
+                 boolean = c(TRUE, TRUE, TRUE, FALSE, FALSE, TRUE))
+
+data_r
+```
+
+#### Python           
+```{python}
+data_py = pd.DataFrame(
+          {'num': [1, 2, 3, 4, 5, 6],
+           'char': ["One", "Two", "Three", "Four", "Five", "Six"],
+           'factor': pd.Categorical(["First", "Second", "Third", "Fourth", "Fifth", "Sixth"]),
+           'ordered_factor': pd.Categorical(["First", "Second", "Third", "Fourth", "Fifth", "Sixth"], ordered = True),
+           'boolean': [True, True, True, False, False, True]
+           })
+
+data_py
+```
+
+# Основные операции с датафреймами
+
+## Получить имена столбцов
+
+#### R
+```{r}
+names(data_r)
+```
+
+#### Python
+```{python}
+data_py.columns
+```
+
+## Получить имена (индексы) строк
+
+#### R
+```{r}
+rownames(data_r)
+```
+
+#### Python
+```{python}
+data_py.index
+```
+
+## Выбор строк
+
+Выберем первые две строки.
+
+Индексация в R начинается с единицы (1).
+
+#### R
+```{r}
+data_r %>% slice(1:2)
+```
+
+Индексация в Python начинается с нуля (0).
+
+#### Python
+```{python}
+data_py.iloc[[0, 1]]
+```
+
+## Выбор столбцов
+
+Выберем первые два столбца c помощью индексов.
+
+Индексация в R начинается с единицы (1).
+
+#### R
+```{r}
+data_r %>% select(1:2)
+```
+
+Индексация в Python начинается с нуля (0).
+
+#### Python
+```{python}
+data_py.iloc[:, [0, 1]]
+```
+
+Выберем первые два столбца c помощью названий.
+
+#### R
+```{r}
+data_r %>% select(num, char)
+```
+
+Двоеточие слева от запятой означает, что мы выбираем все имеющиеся в датафрейме строки (их пять, обратим внимание, что индексация начинается с нуля).
+
+#### Python
+```{python}
+data_py.loc[:, ["num", "char"]]
+```
+
+## Переименование столбцов
+
+В R мы делаем это через функцию `rename()`. 
+
+#### R
+```{r}
+new_data_r <- data_r %>% rename(string = char)
+new_data_r
+```
+
+#### Python
+```{python}
+new_data_py = data_py.rename(columns = {'char': 'string'})
+new_data_py
+```
+
+## Выбор столбцов и строк
+
+Выберем первые три строки и первые два столбца с помощью индексов.
+
+Индексация в R начинается с единицы (1).
+
+#### R
+```{r}
+data_r %>% slice(1:3) %>% select(1:2)
+```
+
+Индексация в Python начинается с нуля (0).
+
+С помощью `.iloc`, который ищет по позиции (начиная с 0).
+
+Первыми указываются строки, вторыми - столбцы.
+
+#### Python
+```{python}
+data_py.iloc[[0, 1, 2], [0, 1]]
+```
+
+Выберем первые три строки и первые два столбца с помощью индексов строк и названий столбцов.
+
+Индексация в R начинается с единицы (1).
+
+#### R
+```{r}
+data_r %>% slice(1:3) %>% select(num, char)
+```
+
+Индексация в Python начинается с нуля (0).
+
+С помощью `.loc`, который ищет по метке индекса. Иногда индексам строк тоже присваивают метки.
+
+#### Python
+```{python}
+data_py.loc[[0, 1, 2], ["num", "char"]]
+```
+
+## Фильтрация датафрейма по условию (в том числе по нескольким)
+
+В R применяются следующие логические операторы:
+
+1. Строго больше `>`;
+
+2. Строго меньше `<`;
+
+3. Меньше или равно `<=`;
+
+4. Больше или равно `>=`;
+
+5. Не равно `!=`;
+
+6. Равно `==`;
+
+7. Логическое "И" `&`;
+
+8. Логическое "ИЛИ" `|`;
+
+9. Логическое "НЕ" `!`
+
+В Python применяются те же операторы, однако в методе `.query` вместо обозначения логического "И" через `&` лучше применять `and`, а вместо обозначения логического "ИЛИ" через `|` лучше применять `or`.
+
+Выберем только те строки, для которых переменная `num` больше 4. 
+
+#### R
+```{r}
+
+data_r %>% filter(num > 3 )
+
+```
+
+#### Python
+```{python}
+
+data_py.query("num > 3")
+
+```
+
+Отбор по нескольким условиям.
+
+Выберем только те строки, для которых переменная `num` больше 3 **или** `boolean` равен True.
+
+#### R
+```{r}
+
+data_r %>% filter(num > 3 | boolean == TRUE)
+
+```
+
+#### Python
+```{python}
+
+data_py.query("num > 3 or boolean == True")
+
+```
+
+## Изменение типа переменной
+
+Зачастую факторные переменные, выражающие собой группы, читаются как строковые переменные. Мы можем изменить их тип со строковых на факторный. Заодно сразу посмотрим, как изменится тип переменной с помощью функции `class()`. Он изменится с `character` на `factor`.
+
+В случае, если необходимо изменить строковую переменную на упорядоченную категориальную, следует добавить параметр `ordered = TRUE`.
+
+#### R
+```{r}
+class(data_r$char)
+factor_char <- factor(data_r$char)
+class(factor_char)
+```
+
+#### R
+```{r}
+class(data_r$char)
+factor_char <- factor(data_r$char, ordered = TRUE)
+class(factor_char)
+```
+
+В Python факторный тип переменной называется "категориальным". Сделаем те же операции, что и выше. Для того, чтобы записать изменения в исходный датафрейм, укажем `copy = False`. Следует осторожно подходить к этому параметру, используя его только в том случае, если нам точно необходимо менять тип переменной.
+
+В случае, если необходимо изменить строковую переменную на упорядоченную категориальную, следует сначала создать упорядоченный тип категориальной переменной, после чего применить его.
+
+#### Python
+```{python}
+data_py['char'].dtype
+factor_char = data_py['char'].astype("category")
+factor_char.dtype
+```
+
+Здесь мы применим метод `.unique()`, который позволяет выделить только уникальные значения переменной. С помощью функции `pd.api.CategoricalDtype()` мы создадим факторную переменную с категориями, соответствующими уникальным значениям нужной переменной, после чего укажем, что категории должны быть упорядочены. 
+
+#### Python
+```{python}
+data_py['char'].dtype
+
+ord_dtype = pd.api.types.CategoricalDtype(categories = data_py['char'].unique(), ordered = True)
+
+factor_char = data_py['char'].astype(ord_dtype)
+
+factor_char
+
+factor_char.dtype
+```
+
+## Вывести размер датафрейма
+
+Иногда полезно понимать, какова размерность имеющегося у нас датасета в количестве строк и количестве колонок.
+
+Первая функция возвращает количество строк, вторая - столбцов, а третья выводит в одной линии сначала количество строк, а потом столбцов.
+
+#### R
+```{r}
+nrow(data_r)
+
+ncol(data_r)
+
+dim(data_r)
+```
+
+В Python за это отвечает единая функция, которая возвращает кортеж, в котором на первом месте стоит количество строк (индекс 0), а на втором количество столбцов (индекс 1). Строго говоря, в R возможно так же обратиться к результату функции `dim()` через соответствующие (1, 2) индексы, но зачем...
+
+#### Python
+```{python}
+data_py.shape[0]
+
+data_py.shape[1]
+
+data_py.shape
+```
+
+## Добавление новых столбцов
+
+Добавим новый 
+#### R
+```{r}
+data_r_with_new_column <- data_r %>% mutate(new_column = num^2)
+data_r_with_new_column
+```
+
+Также возможно склеивать датафреймы в новый датафрейм. 
+
+По столбцам.
+
+```{r}
+concat_new_column <- tibble(concat_new_column = c("new1", "new2", "new3", "new4", "new5", "new6"))
+concat_data_r = bind_cols(data_r_with_new_column, concat_new_column)
+concat_data_r
+```
+
+И по строкам. 
+
+Обратим внимание, что факторные переменные автоматически приводятся к строковым, если к ним добавляются новые уровни факторов. После этого можно перевести их обратно в нужный тип факторной переменной (упорядоченный или неупорядоченный).
+
+```{r}
+concat_new_rows <- tibble(num = 7, char = "Seven", factor = factor("Seven"), ordered_factor = factor("Seven", ordered = TRUE), boolean = FALSE, new_column = 49)
+concat_data_r <- bind_rows(data_r_with_new_column, concat_new_rows)
+concat_data_r
+```
+
+Для того, чтобы добавить новую колонку в датафрейм, необходимо воспользоваться методом `insert()`. Первым аргументом мы указываем его позицию (индексация начинается с нуля), вторым -- название новой колонки, третьим - значения новой колонки. Отметим также, что можно указывать в качестве значений изменения существующих колонок или генераторы списков.
+
+#### Python
+```{python}
+data_py_with_new_column = data_py.copy()
+data_py_with_new_column.insert(5, "new_column", data_py.num**2)
+data_py_with_new_column
+```
+
+Также можно добавить новый столбец с помощью метода `.loc()`. Он вставит новый столбец в конец датафрейма.
+
+```{python}
+data_py_with_new_column.loc[:, "loc_column"] = pd.Series(np.random.normal(size = 6))
+data_py_with_new_column
+```
+
+Также необходимо знать, что можно добавлять столбцы с помощью конкатенации. Мы создаём новый датафрейм, состоящий из одного столбца, после чего с помощью функции `concat()`, где первым аргументом в списке указываем склеиваемые датафреймы, а вторым аргументом ось. Если мы указываем 1, то датафреймы склеиваются по столбцам, если 0, то по строкам.
+
+```{python}
+concat_new_column = pd.DataFrame({"concat_new_colum": ["new1", "new2", "new3", "new4", "new5", "new6"]})
+concat_data_py = pd.concat([data_py_with_new_column, concat_new_column], axis = 1)
+concat_data_py
+```
+
+## Замена столбцов
+
+Иногда нам надо заменить значения во всём столбце на другие.
+
+Это можно сделать вручную. В качестве примера заменим значения столбца `num` на их квадраты.
+
+#### R
+```{r}
+copy_data_r <- data_r
+copy_data_r$num <- copy_data_r$num^2
+copy_data_r
+```
+
+#### Python
+```{python}
+copy_data_py = data_py.copy()
+copy_data_py["num"] = copy_data_py["num"]**2
+copy_data_py
+```
+
+Также это можно сделать через функцию `apply()`, что обычно намного быстрее как минимум в R.
+
+Вновь возведём `num` в квадрат, но уже с помощью `sapply()`, модификации функции `apply()`, предназначенной для итераций по векторам (каждый столбец в датафрейме - это вектор). Как видим, результат тот же. При этом, при больших датасетах такой способ оказывается быстрее.
+
+#### R
+```{r}
+copy_data_r <- data_r
+copy_data_r <- copy_data_r %>% mutate(num = sapply(num, function(x) x^2))
+copy_data_r
+```
+
+#### Python
+```{python}
+copy_data_py = data_py.copy()
+copy_data_py["num"] = copy_data_py["num"].apply(lambda num: num**2)
+copy_data_py
+```
+
+## Удаление столбцов и строк
+
+### Удаление столбцов
+
+#### R
+```{r}
+drop_data_r <- data_r
+drop_data_r <- drop_data_r %>% select(-num, -char)
+drop_data_r
+```
+
+#### Python
+```{python}
+drop_data_py = data_py
+drop_data_py = drop_data_py.drop(['num', 'char'], axis = 1)
+drop_data_py
+```
+
+### Удаление строк
+
+#### R
+```{r}
+drop_data_r <- drop_data_r %>% slice(-c(1:2))
+drop_data_r
+```
+
+#### Python
+```{python}
+drop_data_py = drop_data_py.drop([0, 1], axis = 0)
+drop_data_py
+```
+
+## Индексы датафреймов (only python)
+
+```{python}
+sp500 = pd.read_csv("./Notebooks/Data/sp500.csv", index_col = "Symbol")
+sp500.describe()
+```
+
+```{python}
+np.random.seed(123456)
+df = pd.DataFrame({'foo': np.random.random(10000), 'key': range(100, 10100)})
+df[:5]
+```
+
+```{python}
+df_with_index = df.set_index(['key'])
+df_with_index
+```
+
+```{python}
+df_with_index.loc[10099]
+```
+
+### Типы индексов pandas
+
+#### Index
+```{python}
+temps = pd.DataFrame({"City": ["Missoula", "Philadelphia"],
+                      "Temperature": [70, 80]})
+temps.columns
+```
+
+#### Int64Index и RangeIndex, целые числа
+```{python}
+df_i64 = pd.DataFrame(np.arange(10, 20), index = np.arange(0, 10))
+df_i64
+```
+
+#### Float64Index, числа с плавающей точкой
+```{python}
+
+```
+
+## Простейшие описательные статистики датасета
+
+Для иллюстрации используем импортированный в самом начале датасет `iris`.
+
+Для R покажем два варианта описательных статистик.
+
+Базовый способ. Показывает минимум, максимум, среднее и основные квартили для числовых переменнных. Показывает общее количество объектов и количество объектов каждого класса для факторных переменных.
+
+#### R
+```{r}
+summary(iris_r)
+```
+
+Более продвинутый способ. Показывает большее количество описательных статистик, однако интерпретирует факторные переменные, как числовые, помечая их звёздочкой. Функция находится в пакете `psych`. Подключим его.
+
+#### R
+```{r}
+require(psych)
+describe(iris_r)
+```
+
+В Python в пакете `pandas` метод `describe()` по умолчанию сразу отбрасывает факторные переменные. Для того, чтобы изменить это, необходимо явно указать необходимость включения всех переменных. Однако, рекомендуется делать описательные статистики отдельно для числовых и факторных переменных (это как минимум улучшает понимание и выглядит красивее).
+
+```{python}
+iris_py.describe()
+```
+
+```{python}
+iris_py.describe(include = "all")
+```
+
+С помощью такого варианта можно выбрать статистику по всем строковым переменным в датасете.
+
+```{python}
+iris_py.describe(include = "object")
+```
+
+
+#### Численные и статистические методы
+
+
+```{python}
+
+sp500 = pd.read_csv("Notebooks/Data/sp500.csv", index_col = 'Symbol', usecols = [0, 2, 3, 7])
+sp500.head()
+
+
+omh = pd.read_csv("Notebooks/Data/omh.csv")
+omh.head()
+
+```
+
+```{python}
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
